@@ -15,6 +15,7 @@ import com.warnotte.pf1kwaxgdx.GameMain;
 import com.warnotte.pf1kwaxgdx.GameStateGDX;
 import com.warnotte.pf1kwaxgdx.CaseGDX;
 import com.warnotte.pf1kwaxgdx.MenuScreen;
+import com.warnotte.pf1kwaxgdx.BackgroundRenderer;
 
 public class GameScreen implements Screen {
     private final GameMain game;
@@ -24,6 +25,7 @@ public class GameScreen implements Screen {
     private GameStateGDX gs;
     private OrthographicCamera camera;
     private boolean debugView = true; // true = vue large, false = vue centrée joueur
+    private BackgroundRenderer backgroundRenderer;
 
     private int lives = 3;
 
@@ -42,6 +44,9 @@ public class GameScreen implements Screen {
         camera = new OrthographicCamera();
         camera.setToOrtho(false, 900, 500); // Vue large (debug)
         camera.update();
+
+        // Initialiser le rendu d'arrière-plan
+        backgroundRenderer = new BackgroundRenderer(shapeRenderer);
     }
 
     @Override
@@ -215,6 +220,9 @@ public class GameScreen implements Screen {
             return;
         }
 
+        // Affichage de l'arrière-plan dynamique
+        backgroundRenderer.render(camera, delta);
+
         // Affichage du niveau (cases)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (int i = 0; i < gs.level.getNbrCases(); i++) {
@@ -248,11 +256,18 @@ public class GameScreen implements Screen {
     gs.player.render(batch, delta);
     batch.end();
 
-    // Affichage des vies
+    // Affichage des vies et de l'heure
     batch.begin();
     font.getData().setScale(1.5f);
     font.setColor(1, 1, 1, 1);
     font.draw(batch, "Vies : " + lives, 20, 460);
+
+    // Affichage de l'heure
+    float currentTime = backgroundRenderer.getTimeOfDay();
+    int hours = (int) currentTime;
+    int minutes = (int) ((currentTime - hours) * 60);
+    String timeString = String.format("%02d:%02d", hours, minutes);
+    font.draw(batch, "Heure : " + timeString, 20, 420);
     batch.end();
     }
 
