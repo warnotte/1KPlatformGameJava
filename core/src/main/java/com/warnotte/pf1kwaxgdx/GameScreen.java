@@ -18,16 +18,25 @@ class GameStateGDX {
     }
 }
 
+
 public class GameScreen implements Screen {
+    private final GameMain game;
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
     private GameStateGDX gs;
+
+    private int lives = 3;
+
+    public GameScreen(GameMain game) {
+        this.game = game;
+    }
 
     @Override
     public void show() {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         gs = new GameStateGDX();
+        lives = 3;
     }
 
     @Override
@@ -120,12 +129,27 @@ public class GameScreen implements Screen {
             onGround = true;
         }
 
-        // Si le joueur tombe tout en bas de l’écran, reset
+        // Si le joueur tombe tout en bas de l’écran, perdre une vie
         if (gs.player.y < -30) {
-            gs.player.x = 0;
-            gs.player.y = gs.level.getCase(0).hauteur;
-            gs.player.vy = 0f;
-            gs.player.isJumping = false;
+            lives--;
+            if (lives > 0) {
+                gs.player.x = 0;
+                gs.player.y = gs.level.getCase(0).hauteur;
+                gs.player.vy = 0f;
+                gs.player.isJumping = false;
+            } else {
+                // Retour au menu principal avec message Game Over
+                game.setScreen(new MenuScreen(game, "Game Over"));
+                return;
+            }
+        }
+
+        // Si le joueur atteint la dernière case, victoire
+        int lastCaseIndex = gs.level.getNbrCases() - 1;
+        float lastCaseX = lastCaseIndex * gs.level.caseWidth;
+        if (gs.player.x >= lastCaseX) {
+            game.setScreen(new MenuScreen(game, "Good Game!"));
+            return;
         }
 
         // Affichage du niveau (cases)
@@ -157,6 +181,14 @@ public class GameScreen implements Screen {
     shapeRenderer.setColor(1, 0, 0, 1);
     shapeRenderer.rect(gs.player.x - 3, gs.player.y, 6, 6);
     shapeRenderer.end();
+
+    // Affichage des vies
+    batch.begin();
+    // Affichage simple : "Vies : X"
+    // (On pourrait utiliser BitmapFont, mais on garde simple ici)
+    // TODO : remplacer par un vrai affichage joli si besoin
+    // (On peut aussi afficher "Game Over" ou "Good Game" plus tard)
+    batch.end();
     }
 
     @Override
