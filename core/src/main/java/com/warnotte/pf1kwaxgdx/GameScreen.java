@@ -26,6 +26,7 @@ public class GameScreen implements Screen {
     private OrthographicCamera camera;
     private boolean debugView = true; // true = vue large, false = vue centrée joueur
     private BackgroundRenderer backgroundRenderer;
+    private boolean useTestLevel = false; // Bascule entre niveau test et généré
 
     private int lives = 3;
 
@@ -61,6 +62,25 @@ public class GameScreen implements Screen {
             }
         }
 
+        // Bascule entre niveau test et généré avec touche R (Restart)
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            useTestLevel = !useTestLevel;
+
+            // Régénérer le niveau
+            if (useTestLevel) {
+                gs.level = TestLevelGenerator.createTestLevel();
+            } else {
+                gs.level = new LevelGenerator(System.currentTimeMillis()).generateLevel();
+            }
+
+            // Repositionner le joueur au début
+            gs.player.x = 50;
+            gs.player.y = 100;
+            gs.player.vy = 0f;
+            gs.player.isJumping = false;
+            lives = 3;
+        }
+
         // Mise à jour de la caméra
         if (!debugView) {
             // Suivi du joueur (centré, mais limité aux bords du niveau)
@@ -69,7 +89,7 @@ public class GameScreen implements Screen {
             float halfW = camera.viewportWidth / 2f;
             float halfH = camera.viewportHeight / 2f;
             float minX = halfW;
-            float maxX = gs.level.getNbrCases() * gs.level.caseWidth - halfW;
+            float maxX = gs.level.getLevelWidth() - halfW;
             camX = Math.max(minX, Math.min(maxX, camX));
             camY = Math.max(halfH, Math.min(300, camY)); // Limite verticale simple
             camera.position.set(camX, camY, 0);
@@ -80,35 +100,14 @@ public class GameScreen implements Screen {
         batch.setProjectionMatrix(camera.combined);
         shapeRenderer.setProjectionMatrix(camera.combined);
 
-        // --- Gestion des cases dynamiques ---
-        boolean playerColleDynamic = false;
-        for (int i = 0; i < gs.level.getNbrCases(); i++) {
-            CaseGDX c = gs.level.casesList.get(i);
-            if (c.type == CaseGDX.TypeCase.DYNAMIC) {
-                float caseX = i * gs.level.caseWidth;
-                float caseCenter = caseX + gs.level.caseWidth / 2f;
-                boolean playerOnCase = Math.abs(gs.player.x - caseCenter) < gs.level.caseWidth / 2f && Math.abs(gs.player.y - c.hauteur) < 0.1f && gs.player.vy == 0f;
-                if (playerOnCase) {
-                    // Descendre la case si le joueur est immobile dessus
-                    c.hauteur -= 1.2f;
-                    // Le joueur colle à la case descendante
-                    gs.player.y = c.hauteur;
-                    playerColleDynamic = true;
-                } else {
-                    // Remonter la case si le joueur n'est pas dessus
-                    if (c.hauteur < c.hauteurInitiale) {
-                        c.hauteur += 0.5f;
-                        if (c.hauteur > c.hauteurInitiale) c.hauteur = c.hauteurInitiale;
-                    }
-                }
-            }
-        }
+        // Mise à jour du niveau (plateformes animées)
+        gs.level.update(delta);
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         // --- Gestion des entrées clavier ---
 
-        // --- Logique d'évolution du joueur améliorée ---
+        // --- Logique de mouvement du joueur améliorée ---
         float speed = 2.2f;
         float jumpPower = 8.5f;
         float gravity = 0.45f;
@@ -119,90 +118,77 @@ public class GameScreen implements Screen {
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
         boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
-        // Gestion du saut : seulement si le joueur est sur une case solide (pas un trou)
-        CaseGDX caseSousJoueur = gs.level.getCase(gs.player.x);
-        boolean surSolide = caseSousJoueur != null && caseSousJoueur.type != CaseGDX.TypeCase.HOLE;
-        if (up && !gs.player.isJumping && surSolide && gs.player.y <= caseSousJoueur.hauteur + 0.1f) {
-            gs.player.vy = jumpPower;
-            gs.player.isJumping = true;
-        }
-
-
-
-        // Mouvement horizontal libre (pas de blocage sur les trous)
-        float playerCenterX = gs.player.x;
-        CaseGDX currentCase = gs.level.getCase(playerCenterX);
-        CaseGDX nextCaseLeft = gs.level.getCase(playerCenterX - speed);
-        CaseGDX nextCaseRight = gs.level.getCase(playerCenterX + speed);
-        float currentGround = currentCase != null ? currentCase.hauteur : 0;
-        float nextGroundLeft = nextCaseLeft != null ? nextCaseLeft.hauteur : 0;
-        float nextGroundRight = nextCaseRight != null ? nextCaseRight.hauteur : 0;
+        // Mouvement horizontal
         float nextX = gs.player.x;
-        float playerBottom = gs.player.y;
-        float playerTop = gs.player.y + 6; // hauteur du carré
-
-        // Nouvelle logique de déplacement horizontal :
-        // - Si le joueur est en l'air (isJumping), il peut aller sur la case suivante si sa hauteur le permet
-        // - Si le joueur est au sol, on applique la logique stricte (pas de passage d'un trou à une case plus haute sans saut)
         if (left) {
-            float testX = playerCenterX - speed;
-            if (gs.player.isJumping) {
-                // En l'air : autoriser le passage si la case suivante n'est pas un trou et la hauteur du joueur est suffisante
-                if (nextCaseLeft != null && nextCaseLeft.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundLeft) {
-                    nextX = testX;
-                } else if (nextCaseLeft != null && nextCaseLeft.type == CaseGDX.TypeCase.HOLE) {
-                    // Autoriser de rester dans le trou
-                    nextX = testX;
-                }
-            } else {
-                // Au sol : logique stricte
-                if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
-                    // Bloqué dans le trou
-                } else if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
-                    nextX = testX;
-                }
-            }
+            nextX -= speed;
         }
         if (right) {
-            float testX = playerCenterX + speed;
-            if (gs.player.isJumping) {
-                if (nextCaseRight != null && nextCaseRight.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundRight) {
-                    nextX = testX;
-                } else if (nextCaseRight != null && nextCaseRight.type == CaseGDX.TypeCase.HOLE) {
-                    nextX = testX;
-                }
-            } else {
-                if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
-                    // Bloqué dans le trou
-                } else if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
-                    nextX = testX;
-                }
-            }
+            nextX += speed;
         }
-        gs.player.x = nextX;
 
-        // Gravité et saut
+        // Gravité
         gs.player.vy -= gravity;
         if (gs.player.vy < -maxFallSpeed) gs.player.vy = -maxFallSpeed;
-        gs.player.y += gs.player.vy;
 
-        // Collision sol uniquement s’il y a une case sous le joueur
-        CaseGDX groundCase = gs.level.getCase(playerCenterX);
-        float ground = (groundCase != null && groundCase.type != CaseGDX.TypeCase.HOLE) ? groundCase.hauteur : -1000f;
-        boolean onGround = false;
-        if (groundCase != null && groundCase.type != CaseGDX.TypeCase.HOLE && gs.player.y <= ground) {
-            gs.player.y = ground;
-            gs.player.vy = 0f;
-            gs.player.isJumping = false;
-            onGround = true;
+        // Position verticale tentative
+        float nextY = gs.player.y + gs.player.vy;
+
+        // Gestion du saut
+        if (up && !gs.player.isJumping) {
+            // Vérifier si on peut sauter (sur une plateforme)
+            Level.PlatformCollisionResult testJump = gs.level.checkCollisions(gs.player, gs.player.x, gs.player.y - 1);
+            if (testJump.onGround) {
+                gs.player.vy = jumpPower;
+                gs.player.isJumping = true;
+                nextY = gs.player.y + gs.player.vy; // Recalculer avec nouvelle vitesse
+            }
+        }
+
+        // Vérifier les collisions avec la nouvelle position
+        Level.PlatformCollisionResult collision = gs.level.checkCollisions(gs.player, nextX, nextY);
+
+        // Appliquer la nouvelle position
+        gs.player.x = collision.newX;
+        gs.player.y = collision.newY;
+
+        // Gestion spéciale des effets de plateforme
+        if (collision.contactPlatform != null) {
+            Platform contactPlatform = collision.contactPlatform;
+
+            // Effet spécial plateformes mobiles - le joueur bouge avec
+            if (collision.onGround) {
+                if (contactPlatform.type == Platform.PlatformType.MOVING_HORIZONTAL) {
+                    // Calculer le déplacement de la plateforme depuis la dernière frame
+                    float platformDeltaX = (float)Math.cos(contactPlatform.timer * contactPlatform.moveSpeed / 30f)
+                                         * contactPlatform.moveRange * contactPlatform.moveSpeed / 30f * delta;
+                    gs.player.x += platformDeltaX;
+                }
+
+                if (contactPlatform.type == Platform.PlatformType.MOVING_VERTICAL) {
+                    // Pour les plateformes verticales, le joueur suit déjà grâce au système de collision
+                    // Pas besoin d'ajustement supplémentaire
+                }
+            }
+
+            // Effet spécial tapis roulant
+            if (contactPlatform.type == Platform.PlatformType.CONVEYOR && collision.onGround) {
+                gs.player.x += contactPlatform.conveyorSpeed * delta;
+            }
+
+            // Effet spécial glace - moins de friction
+            if (contactPlatform.type == Platform.PlatformType.ICE && collision.onGround) {
+                // La glace réduit le contrôle horizontal
+                // (effet visuel mais gameplay reste jouable)
+            }
         }
 
         // Si le joueur tombe tout en bas de l’écran, perdre une vie
         if (gs.player.y < -30) {
             lives--;
             if (lives > 0) {
-                gs.player.x = 0;
-                gs.player.y = gs.level.getCase(0).hauteur;
+                gs.player.x = 50; // Position de départ
+                gs.player.y = 100;
                 gs.player.vy = 0f;
                 gs.player.isJumping = false;
             } else {
@@ -212,10 +198,8 @@ public class GameScreen implements Screen {
             }
         }
 
-        // Si le joueur atteint la dernière case, victoire
-        int lastCaseIndex = gs.level.getNbrCases() - 1;
-        float lastCaseX = lastCaseIndex * gs.level.caseWidth;
-        if (gs.player.x >= lastCaseX) {
+        // Si le joueur atteint la fin du niveau, victoire
+        if (gs.player.x >= gs.level.getLevelWidth() - 150) {
             game.setScreen(new MenuScreen(game, "Good Game!"));
             return;
         }
@@ -223,29 +207,8 @@ public class GameScreen implements Screen {
         // Affichage de l'arrière-plan dynamique
         backgroundRenderer.render(camera, delta);
 
-        // Affichage du niveau (cases)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        for (int i = 0; i < gs.level.getNbrCases(); i++) {
-            CaseGDX c = gs.level.casesList.get(i);
-            float x = i * gs.level.caseWidth;
-            float y = 0;
-            // Plateforme
-            if (c.type == CaseGDX.TypeCase.STATIC) {
-                shapeRenderer.setColor(0.8f, 0.67f, 0.4f, 1f); // marron clair
-                shapeRenderer.rect(x, y, gs.level.caseWidth, c.hauteur);
-            } else if (c.type == CaseGDX.TypeCase.DYNAMIC) {
-                shapeRenderer.setColor(0.2f, 0.8f, 0.2f, 1f); // vert
-                shapeRenderer.rect(x, y, gs.level.caseWidth, c.hauteur);
-            } // HOLE = rien
-            // Arbre
-            if (c.isTree && c.type != CaseGDX.TypeCase.HOLE) {
-                shapeRenderer.setColor(0.5f, 0.25f, 0.1f, 1f); // tronc
-                shapeRenderer.rect(x + gs.level.caseWidth/2 - 2, c.hauteur, 4, 10);
-                shapeRenderer.setColor(0.1f, 0.7f, 0.1f, 1f); // feuillage
-                shapeRenderer.circle(x + gs.level.caseWidth/2, c.hauteur + 12, 6);
-            }
-        }
-        shapeRenderer.end();
+        // Affichage du niveau (plateformes)
+        gs.level.render(shapeRenderer);
 
 
     // Affichage du joueur (sprite animé)
@@ -268,6 +231,12 @@ public class GameScreen implements Screen {
     int minutes = (int) ((currentTime - hours) * 60);
     String timeString = String.format("%02d:%02d", hours, minutes);
     font.draw(batch, "Heure : " + timeString, 20, 420);
+
+    // Affichage du mode de niveau et des contrôles
+    String levelMode = useTestLevel ? "Mode: TEST" : "Mode: GENERE";
+    font.draw(batch, levelMode, 20, 380);
+    font.getData().setScale(1.0f);
+    font.draw(batch, "[R] Changer niveau | [TAB] Vue camera", 20, 350);
     batch.end();
     }
 

@@ -10,9 +10,10 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
 public class GameStateGDX {
     public PlayerGDX player;
-    public LevelGDX level;
+    public Level level;
     public GameStateGDX() {
         player = new PlayerGDX();
-        level = new LevelGeneratorSimpleGDX(25).generateLevel();
+        //t  level = TestLevelGenerator.createTestLevel(); // Niveau de test - à réactiver pour débugger
+        level = new LevelGenerator(System.currentTimeMillis()).generateLevel(); // Générateur amélioré
     }
 }
