@@ -2,6 +2,7 @@ package com.warnotte.pf1kwaxgdx;
 
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.Texture;
@@ -33,6 +34,26 @@ public class GameScreen implements Screen {
     public void render(float delta) {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        // --- Gestion des entrées clavier ---
+        boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.Q);
+        boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
+        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
+
+        // --- Logique d'évolution du joueur ---
+        float speed = 2f;
+        if (left) gs.player.x -= speed;
+        if (right) gs.player.x += speed;
+        // Saut simple (pas de gravité avancée ici)
+        if (up && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f) {
+            gs.player.y += 18f;
+        }
+        // Gravité
+        float ground = gs.level.getCase(gs.player.x).hauteur;
+        if (gs.player.y > ground) {
+            gs.player.y -= 2.5f;
+            if (gs.player.y < ground) gs.player.y = ground;
+        }
 
         // Affichage du niveau (cases)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
