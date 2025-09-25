@@ -54,31 +54,46 @@ public class GameScreen implements Screen {
             gs.player.isJumping = true;
         }
 
-        // Mouvement horizontal avec collision
+
+        // Mouvement horizontal avec collision avancée
         float nextX = gs.player.x;
+        float playerBottom = gs.player.y;
+        float playerTop = gs.player.y + 6; // hauteur du carré
+        float currentGround = gs.level.getCase(gs.player.x).hauteur;
+        float nextGroundLeft = gs.level.getCase(gs.player.x - speed) != null ? gs.level.getCase(gs.player.x - speed).hauteur : 0;
+        float nextGroundRight = gs.level.getCase(gs.player.x + speed) != null ? gs.level.getCase(gs.player.x + speed).hauteur : 0;
+
         if (left) {
             float testX = gs.player.x - speed;
             CaseGDX c = gs.level.getCase(testX);
             if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
-                nextX = testX;
+                // Empêcher de monter sur une case plus haute sans sauter
+                if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
+                    nextX = testX;
+                }
             }
         }
         if (right) {
             float testX = gs.player.x + speed;
             CaseGDX c = gs.level.getCase(testX);
             if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
-                nextX = testX;
+                // Empêcher de monter sur une case plus haute sans sauter
+                if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
+                    nextX = testX;
+                }
             }
         }
         gs.player.x = nextX;
+
 
         // Gravité et saut
         gs.player.vy -= gravity;
         if (gs.player.vy < -maxFallSpeed) gs.player.vy = -maxFallSpeed;
         gs.player.y += gs.player.vy;
 
-        // Collision sol
-        float ground = gs.level.getCase(gs.player.x).hauteur;
+        // Collision sol (et chute dans un trou)
+        CaseGDX groundCase = gs.level.getCase(gs.player.x + 3); // centre du joueur
+        float ground = (groundCase != null && groundCase.type != CaseGDX.TypeCase.HOLE) ? groundCase.hauteur : -1000f;
         if (gs.player.y <= ground) {
             gs.player.y = ground;
             gs.player.vy = 0f;
@@ -86,7 +101,7 @@ public class GameScreen implements Screen {
         }
 
         // Si le joueur tombe dans un trou ou sort du niveau, reset
-        CaseGDX cUnder = gs.level.getCase(gs.player.x);
+        CaseGDX cUnder = gs.level.getCase(gs.player.x + 3);
         if (cUnder == null || cUnder.type == CaseGDX.TypeCase.HOLE || gs.player.y < -30) {
             // Reset position
             gs.player.x = 0;
@@ -119,11 +134,11 @@ public class GameScreen implements Screen {
         }
         shapeRenderer.end();
 
-        // Affichage du joueur (rectangle temporaire)
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(1, 0, 0, 1);
-        shapeRenderer.rect(gs.player.x + 5, gs.player.y, 6, 6);
-        shapeRenderer.end();
+    // Affichage du joueur (rectangle centré sur la case)
+    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+    shapeRenderer.setColor(1, 0, 0, 1);
+    shapeRenderer.rect(gs.player.x + gs.level.caseWidth/2f - 3, gs.player.y, 6, 6);
+    shapeRenderer.end();
     }
 
     @Override
