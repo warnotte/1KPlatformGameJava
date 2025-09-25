@@ -1,3 +1,4 @@
+package com.warnotte.pf1kwaxgdx;
 
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.Gdx;
