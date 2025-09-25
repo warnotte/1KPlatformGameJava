@@ -36,23 +36,61 @@ public class GameScreen implements Screen {
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         // --- Gestion des entrées clavier ---
-        boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.Q);
-        boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
-        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
-        // --- Logique d'évolution du joueur ---
-        float speed = 2f;
-        if (left) gs.player.x -= speed;
-        if (right) gs.player.x += speed;
-        // Saut simple (pas de gravité avancée ici)
-        if (up && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f) {
-            gs.player.y += 18f;
+        // --- Logique d'évolution du joueur améliorée ---
+        float speed = 2.2f;
+        float jumpPower = 8.5f;
+        float gravity = 0.45f;
+        float maxFallSpeed = 8f;
+        // Variables statiques pour la physique
+        if (gs.player.vy == null) gs.player.vy = 0f;
+        if (gs.player.isJumping == null) gs.player.isJumping = false;
+
+        // Gestion du saut
+        if ((up && !gs.player.isJumping && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f)) {
+            gs.player.vy = jumpPower;
+            gs.player.isJumping = true;
         }
-        // Gravité
+
+        // Mouvement horizontal avec collision
+        float nextX = gs.player.x;
+        if (left) {
+            float testX = gs.player.x - speed;
+            CaseGDX c = gs.level.getCase(testX);
+            if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
+                nextX = testX;
+            }
+        }
+        if (right) {
+            float testX = gs.player.x + speed;
+            CaseGDX c = gs.level.getCase(testX);
+            if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
+                nextX = testX;
+            }
+        }
+        gs.player.x = nextX;
+
+        // Gravité et saut
+        gs.player.vy -= gravity;
+        if (gs.player.vy < -maxFallSpeed) gs.player.vy = -maxFallSpeed;
+        gs.player.y += gs.player.vy;
+
+        // Collision sol
         float ground = gs.level.getCase(gs.player.x).hauteur;
-        if (gs.player.y > ground) {
-            gs.player.y -= 2.5f;
-            if (gs.player.y < ground) gs.player.y = ground;
+        if (gs.player.y <= ground) {
+            gs.player.y = ground;
+            gs.player.vy = 0f;
+            gs.player.isJumping = false;
+        }
+
+        // Si le joueur tombe dans un trou ou sort du niveau, reset
+        CaseGDX cUnder = gs.level.getCase(gs.player.x);
+        if (cUnder == null || cUnder.type == CaseGDX.TypeCase.HOLE || gs.player.y < -30) {
+            // Reset position
+            gs.player.x = 0;
+            gs.player.y = gs.level.getCase(0).hauteur;
+            gs.player.vy = 0f;
+            gs.player.isJumping = false;
         }
 
         // Affichage du niveau (cases)
