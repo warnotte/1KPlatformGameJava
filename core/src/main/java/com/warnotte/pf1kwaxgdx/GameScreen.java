@@ -101,41 +101,40 @@ public class GameScreen implements Screen {
         float playerBottom = gs.player.y;
         float playerTop = gs.player.y + 6; // hauteur du carré
 
+        // Nouvelle logique de déplacement horizontal :
+        // - Si le joueur est en l'air (isJumping), il peut aller sur la case suivante si sa hauteur le permet
+        // - Si le joueur est au sol, on applique la logique stricte (pas de passage d'un trou à une case plus haute sans saut)
         if (left) {
             float testX = playerCenterX - speed;
-            if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
-                // Autoriser le déplacement si la case suivante est aussi un trou
-                if (nextCaseLeft != null && nextCaseLeft.type == CaseGDX.TypeCase.HOLE) {
+            if (gs.player.isJumping) {
+                // En l'air : autoriser le passage si la case suivante n'est pas un trou et la hauteur du joueur est suffisante
+                if (nextCaseLeft != null && nextCaseLeft.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundLeft) {
                     nextX = testX;
-                } else {
-                    // Autoriser le passage si le joueur est en l'air (saut)
-                    if (gs.player.vy > 0 || !gs.player.isJumping) {
-                        // On saute ou tombe : autoriser le passage si la hauteur du joueur permet d'atterrir
-                        if (nextCaseLeft != null && nextCaseLeft.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundLeft) {
-                            nextX = testX;
-                        }
-                    }
+                } else if (nextCaseLeft != null && nextCaseLeft.type == CaseGDX.TypeCase.HOLE) {
+                    // Autoriser de rester dans le trou
+                    nextX = testX;
                 }
             } else {
-                if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
+                // Au sol : logique stricte
+                if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
+                    // Bloqué dans le trou
+                } else if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
                     nextX = testX;
                 }
             }
         }
         if (right) {
             float testX = playerCenterX + speed;
-            if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
-                if (nextCaseRight != null && nextCaseRight.type == CaseGDX.TypeCase.HOLE) {
+            if (gs.player.isJumping) {
+                if (nextCaseRight != null && nextCaseRight.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundRight) {
                     nextX = testX;
-                } else {
-                    if (gs.player.vy > 0 || !gs.player.isJumping) {
-                        if (nextCaseRight != null && nextCaseRight.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundRight) {
-                            nextX = testX;
-                        }
-                    }
+                } else if (nextCaseRight != null && nextCaseRight.type == CaseGDX.TypeCase.HOLE) {
+                    nextX = testX;
                 }
             } else {
-                if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
+                if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
+                    // Bloqué dans le trou
+                } else if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
                     nextX = testX;
                 }
             }
