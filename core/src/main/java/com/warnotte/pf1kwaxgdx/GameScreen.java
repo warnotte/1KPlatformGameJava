@@ -1,28 +1,12 @@
 package com.warnotte.pf1kwaxgdx;
 
-import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-
-// Version simplifiée de GameState pour la démo
-class GameStateGDX {
-    public PlayerGDX player;
-    public LevelGDX level;
-    public GameStateGDX() {
-        player = new PlayerGDX();
-        level = new LevelGeneratorSimpleGDX(25).generateLevel();
-    }
-}
-
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 
 public class GameScreen implements Screen {
     private final GameMain game;
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
+    private BitmapFont font;
     private GameStateGDX gs;
 
     private int lives = 3;
@@ -35,6 +19,7 @@ public class GameScreen implements Screen {
     public void show() {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
+        font = new BitmapFont();
         gs = new GameStateGDX();
         lives = 3;
     }
@@ -91,24 +76,42 @@ public class GameScreen implements Screen {
 
         // Mouvement horizontal libre (pas de blocage sur les trous)
         float playerCenterX = gs.player.x;
-        float currentGround = gs.level.getCase(playerCenterX) != null ? gs.level.getCase(playerCenterX).hauteur : 0;
-        float nextGroundLeft = gs.level.getCase(playerCenterX - speed) != null ? gs.level.getCase(playerCenterX - speed).hauteur : 0;
-        float nextGroundRight = gs.level.getCase(playerCenterX + speed) != null ? gs.level.getCase(playerCenterX + speed).hauteur : 0;
+        CaseGDX currentCase = gs.level.getCase(playerCenterX);
+        CaseGDX nextCaseLeft = gs.level.getCase(playerCenterX - speed);
+        CaseGDX nextCaseRight = gs.level.getCase(playerCenterX + speed);
+        float currentGround = currentCase != null ? currentCase.hauteur : 0;
+        float nextGroundLeft = nextCaseLeft != null ? nextCaseLeft.hauteur : 0;
+        float nextGroundRight = nextCaseRight != null ? nextCaseRight.hauteur : 0;
         float nextX = gs.player.x;
         float playerBottom = gs.player.y;
         float playerTop = gs.player.y + 6; // hauteur du carré
 
         if (left) {
             float testX = playerCenterX - speed;
-            // Empêcher de monter sur une case plus haute sans sauter
-            if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
-                nextX = testX;
+            // Si on est dans un trou, empêcher d'aller sur une case plus haute sans sauter
+            if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
+                // Autoriser le déplacement seulement si la case suivante est aussi un trou OU si on saute (en l'air)
+                if (nextCaseLeft != null && nextCaseLeft.type == CaseGDX.TypeCase.HOLE) {
+                    nextX = testX;
+                }
+                // Sinon, bloqué
+            } else {
+                // Empêcher de monter sur une case plus haute sans sauter
+                if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
+                    nextX = testX;
+                }
             }
         }
         if (right) {
             float testX = playerCenterX + speed;
-            if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
-                nextX = testX;
+            if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
+                if (nextCaseRight != null && nextCaseRight.type == CaseGDX.TypeCase.HOLE) {
+                    nextX = testX;
+                }
+            } else {
+                if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
+                    nextX = testX;
+                }
             }
         }
         gs.player.x = nextX;
@@ -184,10 +187,9 @@ public class GameScreen implements Screen {
 
     // Affichage des vies
     batch.begin();
-    // Affichage simple : "Vies : X"
-    // (On pourrait utiliser BitmapFont, mais on garde simple ici)
-    // TODO : remplacer par un vrai affichage joli si besoin
-    // (On peut aussi afficher "Game Over" ou "Good Game" plus tard)
+    font.getData().setScale(1.5f);
+    font.setColor(1, 1, 1, 1);
+    font.draw(batch, "Vies : " + lives, 20, 460);
     batch.end();
     }
 
@@ -209,6 +211,7 @@ public class GameScreen implements Screen {
     public void dispose() {
         batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
+        if (font != null) font.dispose();
         gs.player.dispose();
     }
 }
