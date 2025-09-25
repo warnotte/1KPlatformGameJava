@@ -64,10 +64,21 @@ public class GameScreen implements Screen {
         float nextGroundLeft = gs.level.getCase(playerCenterX - speed) != null ? gs.level.getCase(playerCenterX - speed).hauteur : 0;
         float nextGroundRight = gs.level.getCase(playerCenterX + speed) != null ? gs.level.getCase(playerCenterX + speed).hauteur : 0;
 
+
+        // onGround, groundCase, ground sont déjà déclarés plus bas, donc on ne les redéclare pas ici
+        if (gs.player.y <= ground) {
+            gs.player.y = ground;
+            gs.player.vy = 0f;
+            gs.player.isJumping = false;
+            onGround = true;
+        }
+
         if (left) {
             float testX = playerCenterX - speed;
             CaseGDX c = gs.level.getCase(testX);
-            if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
+            // Autoriser le mouvement au-dessus d’un trou si le joueur est en l’air
+            boolean canMove = (c != null && c.type != CaseGDX.TypeCase.HOLE) || !onGround;
+            if (canMove) {
                 // Empêcher de monter sur une case plus haute sans sauter
                 if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
                     nextX = testX;
@@ -77,8 +88,8 @@ public class GameScreen implements Screen {
         if (right) {
             float testX = playerCenterX + speed;
             CaseGDX c = gs.level.getCase(testX);
-            if (c != null && c.type != CaseGDX.TypeCase.HOLE) {
-                // Empêcher de monter sur une case plus haute sans sauter
+            boolean canMove = (c != null && c.type != CaseGDX.TypeCase.HOLE) || !onGround;
+            if (canMove) {
                 if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
                     nextX = testX;
                 }
