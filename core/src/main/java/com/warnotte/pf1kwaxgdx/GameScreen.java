@@ -79,8 +79,10 @@ public class GameScreen implements Screen {
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
         boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
-        // Gestion du saut
-        if (up && !gs.player.isJumping && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f) {
+        // Gestion du saut : seulement si le joueur est sur une case solide (pas un trou)
+        CaseGDX caseSousJoueur = gs.level.getCase(gs.player.x);
+        boolean surSolide = caseSousJoueur != null && caseSousJoueur.type != CaseGDX.TypeCase.HOLE;
+        if (up && !gs.player.isJumping && surSolide && gs.player.y <= caseSousJoueur.hauteur + 0.1f) {
             gs.player.vy = jumpPower;
             gs.player.isJumping = true;
         }
