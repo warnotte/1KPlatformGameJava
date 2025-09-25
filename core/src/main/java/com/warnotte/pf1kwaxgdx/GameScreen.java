@@ -204,11 +204,14 @@ public class GameScreen implements Screen {
         }
         shapeRenderer.end();
 
-    // Affichage du joueur (rectangle centré sur la position x du joueur)
-    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-    shapeRenderer.setColor(1, 0, 0, 1);
-    shapeRenderer.rect(gs.player.x - 3, gs.player.y, 6, 6);
-    shapeRenderer.end();
+
+    // Affichage du joueur (sprite animé)
+    batch.begin();
+    // Détecter la direction pour l’animation
+    gs.player.movingLeft = left && !right;
+    gs.player.movingRight = right && !left;
+    gs.player.render(batch);
+    batch.end();
 
     // Affichage des vies
     batch.begin();
