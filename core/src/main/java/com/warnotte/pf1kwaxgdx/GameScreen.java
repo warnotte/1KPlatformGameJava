@@ -34,6 +34,7 @@ public class GameScreen implements Screen {
     public void render(float delta) {
 
         // --- Gestion des cases dynamiques ---
+        boolean playerColleDynamic = false;
         for (int i = 0; i < gs.level.getNbrCases(); i++) {
             CaseGDX c = gs.level.casesList.get(i);
             if (c.type == CaseGDX.TypeCase.DYNAMIC) {
@@ -42,7 +43,10 @@ public class GameScreen implements Screen {
                 boolean playerOnCase = Math.abs(gs.player.x - caseCenter) < gs.level.caseWidth / 2f && Math.abs(gs.player.y - c.hauteur) < 0.1f && gs.player.vy == 0f;
                 if (playerOnCase) {
                     // Descendre la case si le joueur est immobile dessus
-                    c.hauteur -= 0.5f;
+                    c.hauteur -= 1.2f;
+                    // Le joueur colle à la case descendante
+                    gs.player.y = c.hauteur;
+                    playerColleDynamic = true;
                 } else {
                     // Remonter la case si le joueur n'est pas dessus
                     if (c.hauteur < c.hauteurInitiale) {
