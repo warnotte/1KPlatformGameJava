@@ -32,6 +32,26 @@ public class GameScreen implements Screen {
 
     @Override
     public void render(float delta) {
+
+        // --- Gestion des cases dynamiques ---
+        for (int i = 0; i < gs.level.getNbrCases(); i++) {
+            CaseGDX c = gs.level.casesList.get(i);
+            if (c.type == CaseGDX.TypeCase.DYNAMIC) {
+                float caseX = i * gs.level.caseWidth;
+                float caseCenter = caseX + gs.level.caseWidth / 2f;
+                boolean playerOnCase = Math.abs(gs.player.x - caseCenter) < gs.level.caseWidth / 2f && Math.abs(gs.player.y - c.hauteur) < 0.1f && gs.player.vy == 0f;
+                if (playerOnCase) {
+                    // Descendre la case si le joueur est immobile dessus
+                    c.hauteur -= 0.5f;
+                } else {
+                    // Remonter la case si le joueur n'est pas dessus
+                    if (c.hauteur < c.hauteurInitiale) {
+                        c.hauteur += 0.5f;
+                        if (c.hauteur > c.hauteurInitiale) c.hauteur = c.hauteurInitiale;
+                    }
+                }
+            }
+        }
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
