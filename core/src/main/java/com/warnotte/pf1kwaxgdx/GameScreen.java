@@ -56,16 +56,18 @@ public class GameScreen implements Screen {
 
 
         // Mouvement horizontal avec collision avancée
-        float nextX = gs.player.x;
-        float playerBottom = gs.player.y;
-        float playerTop = gs.player.y + 6; // hauteur du carré
         float playerCenterX = gs.player.x;
         float currentGround = gs.level.getCase(playerCenterX) != null ? gs.level.getCase(playerCenterX).hauteur : 0;
         float nextGroundLeft = gs.level.getCase(playerCenterX - speed) != null ? gs.level.getCase(playerCenterX - speed).hauteur : 0;
         float nextGroundRight = gs.level.getCase(playerCenterX + speed) != null ? gs.level.getCase(playerCenterX + speed).hauteur : 0;
+        float nextX = gs.player.x;
+        float playerBottom = gs.player.y;
+        float playerTop = gs.player.y + 6; // hauteur du carré
 
-
-        // onGround, groundCase, ground sont déjà déclarés plus bas, donc on ne les redéclare pas ici
+        // Détection du sol et état onGround
+        CaseGDX groundCase = gs.level.getCase(playerCenterX);
+        float ground = (groundCase != null && groundCase.type != CaseGDX.TypeCase.HOLE) ? groundCase.hauteur : -1000f;
+        boolean onGround = false;
         if (gs.player.y <= ground) {
             gs.player.y = ground;
             gs.player.vy = 0f;
@@ -97,22 +99,10 @@ public class GameScreen implements Screen {
         }
         gs.player.x = nextX;
 
-
         // Gravité et saut
         gs.player.vy -= gravity;
         if (gs.player.vy < -maxFallSpeed) gs.player.vy = -maxFallSpeed;
         gs.player.y += gs.player.vy;
-
-        // Collision sol (et chute dans un trou)
-        CaseGDX groundCase = gs.level.getCase(playerCenterX);
-        float ground = (groundCase != null && groundCase.type != CaseGDX.TypeCase.HOLE) ? groundCase.hauteur : -1000f;
-        boolean onGround = false;
-        if (gs.player.y <= ground) {
-            gs.player.y = ground;
-            gs.player.vy = 0f;
-            gs.player.isJumping = false;
-            onGround = true;
-        }
 
         // Si le joueur tombe dans un trou ou sort du niveau, reset (uniquement si au sol)
         CaseGDX cUnder = gs.level.getCase(playerCenterX);
