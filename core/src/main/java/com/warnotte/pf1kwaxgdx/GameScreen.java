@@ -134,10 +134,10 @@ public class GameScreen implements Screen {
         }
         shapeRenderer.end();
 
-    // Affichage du joueur (rectangle centré sur la case)
+    // Affichage du joueur (rectangle centré sur la position x du joueur)
     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     shapeRenderer.setColor(1, 0, 0, 1);
-    shapeRenderer.rect(gs.player.x + gs.level.caseWidth/2f - 3, gs.player.y, 6, 6);
+    shapeRenderer.rect(gs.player.x - 3, gs.player.y, 6, 6);
     shapeRenderer.end();
     }
 
