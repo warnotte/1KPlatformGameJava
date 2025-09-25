@@ -6,6 +6,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 
@@ -21,6 +22,8 @@ public class GameScreen implements Screen {
     private ShapeRenderer shapeRenderer;
     private BitmapFont font;
     private GameStateGDX gs;
+    private OrthographicCamera camera;
+    private boolean debugView = true; // true = vue large, false = vue centrée joueur
 
     private int lives = 3;
 
@@ -35,10 +38,42 @@ public class GameScreen implements Screen {
         font = new BitmapFont();
         gs = new GameStateGDX();
         lives = 3;
+        // Caméra : vue large par défaut
+        camera = new OrthographicCamera();
+        camera.setToOrtho(false, 900, 500); // Vue large (debug)
+        camera.update();
     }
 
     @Override
     public void render(float delta) {
+        // Bascule de mode caméra avec TAB
+        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
+            debugView = !debugView;
+            if (debugView) {
+                camera.setToOrtho(false, 900, 500); // Vue large
+            } else {
+                camera.setToOrtho(false, 320, 180); // Vue zoomée (modifiable)
+            }
+        }
+
+        // Mise à jour de la caméra
+        if (!debugView) {
+            // Suivi du joueur (centré, mais limité aux bords du niveau)
+            float camX = gs.player.x;
+            float camY = gs.player.y;
+            float halfW = camera.viewportWidth / 2f;
+            float halfH = camera.viewportHeight / 2f;
+            float minX = halfW;
+            float maxX = gs.level.getNbrCases() * gs.level.caseWidth - halfW;
+            camX = Math.max(minX, Math.min(maxX, camX));
+            camY = Math.max(halfH, Math.min(300, camY)); // Limite verticale simple
+            camera.position.set(camX, camY, 0);
+        } else {
+            camera.position.set(camera.viewportWidth/2f, camera.viewportHeight/2f, 0);
+        }
+        camera.update();
+        batch.setProjectionMatrix(camera.combined);
+        shapeRenderer.setProjectionMatrix(camera.combined);
 
         // --- Gestion des cases dynamiques ---
         boolean playerColleDynamic = false;

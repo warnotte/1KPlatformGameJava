@@ -27,7 +27,7 @@ public class PlayerAnimationGDX {
 
     private Animation<TextureRegion> loadAnimation(String pattern, int count, float frameDuration) {
         Array<TextureRegion> frames = new Array<>();
-        for (int i = 0; i <= count; i++) {
+        for (int i = 0; i < count; i++) {
             String path = String.format(pattern, i);
             Texture tex = new Texture(Gdx.files.internal(path));
             frames.add(new TextureRegion(tex));
