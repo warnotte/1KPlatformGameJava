@@ -42,12 +42,14 @@ public class GameScreen implements Screen {
         float jumpPower = 8.5f;
         float gravity = 0.45f;
         float maxFallSpeed = 8f;
-        // Variables statiques pour la physique
-        if (gs.player.vy == null) gs.player.vy = 0f;
-        if (gs.player.isJumping == null) gs.player.isJumping = false;
+
+        // Entrées clavier
+        boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.Q);
+        boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
+        boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
         // Gestion du saut
-        if ((up && !gs.player.isJumping && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f)) {
+        if (up && !gs.player.isJumping && gs.player.y <= gs.level.getCase(gs.player.x).hauteur + 0.1f) {
             gs.player.vy = jumpPower;
             gs.player.isJumping = true;
         }

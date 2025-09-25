@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.Texture;
 
 public class PlayerGDX {
     public float x, y;
+    public float vy = 0f; // vitesse verticale
+    public boolean isJumping = false;
     private Texture texture;
 
     public PlayerGDX() {
