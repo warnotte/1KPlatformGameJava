@@ -87,10 +87,6 @@ public class Level {
                     result.newX = platform.x + platform.width + playerWidth/2;
                 }
 
-                // Actions spéciales de la plateforme
-                if (result.onGround) {
-                    platform.onPlayerContact(player);
-                }
             }
         }
 

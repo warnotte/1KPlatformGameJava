@@ -1,4 +1,3 @@
-
 package com.warnotte.pf1kwaxgdx;
 
 import com.badlogic.gdx.Screen;
@@ -9,13 +8,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-
-// Import des classes du projet
-import com.warnotte.pf1kwaxgdx.GameMain;
-import com.warnotte.pf1kwaxgdx.GameStateGDX;
-import com.warnotte.pf1kwaxgdx.CaseGDX;
-import com.warnotte.pf1kwaxgdx.MenuScreen;
-import com.warnotte.pf1kwaxgdx.BackgroundRenderer;
 
 public class GameScreen implements Screen {
     private final GameMain game;
@@ -40,6 +32,7 @@ public class GameScreen implements Screen {
         shapeRenderer = new ShapeRenderer();
         font = new BitmapFont();
         gs = new GameStateGDX();
+        gs.player.resetGroundState();
         lives = 3;
         // Caméra : vue large par défaut
         camera = new OrthographicCamera();
@@ -78,6 +71,7 @@ public class GameScreen implements Screen {
             gs.player.y = 100;
             gs.player.vy = 0f;
             gs.player.isJumping = false;
+            gs.player.resetGroundState();
             lives = 3;
         }
 
@@ -94,7 +88,7 @@ public class GameScreen implements Screen {
             camY = Math.max(halfH, Math.min(300, camY)); // Limite verticale simple
             camera.position.set(camX, camY, 0);
         } else {
-            camera.position.set(camera.viewportWidth/2f, camera.viewportHeight/2f, 0);
+            camera.position.set(camera.viewportWidth / 2f, camera.viewportHeight / 2f, 0);
         }
         camera.update();
         batch.setProjectionMatrix(camera.combined);
@@ -107,18 +101,15 @@ public class GameScreen implements Screen {
 
         // --- Gestion des entrées clavier ---
 
-        // --- Logique de mouvement du joueur améliorée ---
         float speed = 2.2f;
         float jumpPower = 8.5f;
         float gravity = 0.45f;
         float maxFallSpeed = 8f;
 
-        // Entrées clavier
         boolean left = Gdx.input.isKeyPressed(Input.Keys.LEFT) || Gdx.input.isKeyPressed(Input.Keys.Q);
         boolean right = Gdx.input.isKeyPressed(Input.Keys.RIGHT) || Gdx.input.isKeyPressed(Input.Keys.D);
         boolean up = Gdx.input.isKeyPressed(Input.Keys.UP) || Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
-        // Mouvement horizontal
         float nextX = gs.player.x;
         if (left) {
             nextX -= speed;
@@ -127,16 +118,15 @@ public class GameScreen implements Screen {
             nextX += speed;
         }
 
-        // Gravité
+        // Gravité et vitesse verticale
         gs.player.vy -= gravity;
-        if (gs.player.vy < -maxFallSpeed) gs.player.vy = -maxFallSpeed;
-
-        // Position verticale tentative
+        if (gs.player.vy < -maxFallSpeed) {
+            gs.player.vy = -maxFallSpeed;
+        }
         float nextY = gs.player.y + gs.player.vy;
 
         // Gestion du saut
         if (up && !gs.player.isJumping) {
-            // Vérifier si on peut sauter (sur une plateforme)
             Level.PlatformCollisionResult testJump = gs.level.checkCollisions(gs.player, gs.player.x, gs.player.y - 1);
             if (testJump.onGround) {
                 gs.player.vy = jumpPower;
@@ -145,45 +135,55 @@ public class GameScreen implements Screen {
             }
         }
 
-        // Vérifier les collisions avec la nouvelle position
+        boolean wasOnGround = gs.player.onGround;
+        Platform previousPlatform = gs.player.groundPlatform;
+
+        // V�rifier les collisions avec la nouvelle position
         Level.PlatformCollisionResult collision = gs.level.checkCollisions(gs.player, nextX, nextY);
 
         // Appliquer la nouvelle position
         gs.player.x = collision.newX;
         gs.player.y = collision.newY;
 
-        // Gestion spéciale des effets de plateforme
-        if (collision.contactPlatform != null) {
+        if (collision.onGround && collision.contactPlatform != null) {
             Platform contactPlatform = collision.contactPlatform;
+            boolean platformChanged = previousPlatform != contactPlatform;
+            boolean landedThisFrame = !wasOnGround || platformChanged;
 
-            // Effet spécial plateformes mobiles - le joueur bouge avec
-            if (collision.onGround) {
+            if (platformChanged && previousPlatform != null) {
+                previousPlatform.onPlayerLeave(gs.player);
+            }
+
+            gs.player.onGround = true;
+            gs.player.groundPlatform = contactPlatform;
+            if (platformChanged) {
+                gs.player.timeOnGround = 0f;
+            }
+            gs.player.timeOnGround += delta;
+
+            contactPlatform.handlePlayerContact(gs.player, delta, landedThisFrame);
+
+            if (gs.player.onGround) {
                 if (contactPlatform.type == Platform.PlatformType.MOVING_HORIZONTAL) {
-                    // Calculer le déplacement de la plateforme depuis la dernière frame
-                    float platformDeltaX = (float)Math.cos(contactPlatform.timer * contactPlatform.moveSpeed / 30f)
-                                         * contactPlatform.moveRange * contactPlatform.moveSpeed / 30f * delta;
+                    float platformDeltaX = (float) Math.cos(contactPlatform.timer * contactPlatform.moveSpeed / 30f)
+                            * contactPlatform.moveRange * contactPlatform.moveSpeed / 30f * delta;
                     gs.player.x += platformDeltaX;
                 }
-
-                if (contactPlatform.type == Platform.PlatformType.MOVING_VERTICAL) {
-                    // Pour les plateformes verticales, le joueur suit déjà grâce au système de collision
-                    // Pas besoin d'ajustement supplémentaire
-                }
+                // Pour les plateformes verticales, le suivi est déjà géré par la collision
+            } else {
+                contactPlatform.onPlayerLeave(gs.player);
+                gs.player.timeOnGround = 0f;
+                gs.player.isJumping = true;
             }
-
-            // Effet spécial tapis roulant
-            if (contactPlatform.type == Platform.PlatformType.CONVEYOR && collision.onGround) {
-                gs.player.x += contactPlatform.conveyorSpeed * delta;
+        } else {
+            if (previousPlatform != null) {
+                previousPlatform.onPlayerLeave(gs.player);
             }
-
-            // Effet spécial glace - moins de friction
-            if (contactPlatform.type == Platform.PlatformType.ICE && collision.onGround) {
-                // La glace réduit le contrôle horizontal
-                // (effet visuel mais gameplay reste jouable)
-            }
+            gs.player.resetGroundState();
+            gs.player.isJumping = true;
         }
 
-        // Si le joueur tombe tout en bas de l’écran, perdre une vie
+        // Si le joueur tombe tout en bas de l'écran, perdre une vie
         if (gs.player.y < -30) {
             lives--;
             if (lives > 0) {
@@ -191,8 +191,8 @@ public class GameScreen implements Screen {
                 gs.player.y = 100;
                 gs.player.vy = 0f;
                 gs.player.isJumping = false;
+                gs.player.resetGroundState();
             } else {
-                // Retour au menu principal avec message Game Over
                 game.setScreen(new MenuScreen(game, "Game Over"));
                 return;
             }
@@ -210,34 +210,30 @@ public class GameScreen implements Screen {
         // Affichage du niveau (plateformes)
         gs.level.render(shapeRenderer);
 
+        // Affichage du joueur (sprite animé)
+        batch.begin();
+        gs.player.movingLeft = left && !right;
+        gs.player.movingRight = right && !left;
+        gs.player.render(batch, delta);
+        batch.end();
 
-    // Affichage du joueur (sprite animé)
-    batch.begin();
-    // Détecter la direction pour l’animation
-    gs.player.movingLeft = left && !right;
-    gs.player.movingRight = right && !left;
-    gs.player.render(batch, delta);
-    batch.end();
+        // Affichage des vies et de l'heure
+        batch.begin();
+        font.getData().setScale(1.5f);
+        font.setColor(1, 1, 1, 1);
+        font.draw(batch, "Vies : " + lives, 20, 460);
 
-    // Affichage des vies et de l'heure
-    batch.begin();
-    font.getData().setScale(1.5f);
-    font.setColor(1, 1, 1, 1);
-    font.draw(batch, "Vies : " + lives, 20, 460);
+        float currentTime = backgroundRenderer.getTimeOfDay();
+        int hours = (int) currentTime;
+        int minutes = (int) ((currentTime - hours) * 60);
+        String timeString = String.format("%02d:%02d", hours, minutes);
+        font.draw(batch, "Heure : " + timeString, 20, 420);
 
-    // Affichage de l'heure
-    float currentTime = backgroundRenderer.getTimeOfDay();
-    int hours = (int) currentTime;
-    int minutes = (int) ((currentTime - hours) * 60);
-    String timeString = String.format("%02d:%02d", hours, minutes);
-    font.draw(batch, "Heure : " + timeString, 20, 420);
-
-    // Affichage du mode de niveau et des contrôles
-    String levelMode = useTestLevel ? "Mode: TEST" : "Mode: GENERE";
-    font.draw(batch, levelMode, 20, 380);
-    font.getData().setScale(1.0f);
-    font.draw(batch, "[R] Changer niveau | [TAB] Vue camera", 20, 350);
-    batch.end();
+        String levelMode = useTestLevel ? "Mode: TEST" : "Mode: GENERE";
+        font.draw(batch, levelMode, 20, 380);
+        font.getData().setScale(1.0f);
+        font.draw(batch, "[R] Changer niveau | [TAB] Vue camera", 20, 350);
+        batch.end();
     }
 
     @Override

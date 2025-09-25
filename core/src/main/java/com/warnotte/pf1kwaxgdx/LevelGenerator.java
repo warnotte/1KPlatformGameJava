@@ -147,6 +147,7 @@ public class LevelGenerator {
 
             case BREAKABLE:
                 platform.maxHits = 2 + random.nextInt(3);           // 2-4 coups pour casser
+                platform.breakTotalTime = 2.2f + random.nextFloat() * 1.3f;
                 break;
 
             case CONVEYOR:

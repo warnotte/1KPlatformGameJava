@@ -1,6 +1,5 @@
 package com.warnotte.pf1kwaxgdx;
 
-
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
@@ -11,8 +10,10 @@ public class PlayerGDX {
     public boolean isJumping = false;
     public boolean movingLeft = false;
     public boolean movingRight = false;
+    public boolean onGround = false;
+    public Platform groundPlatform = null;
+    public float timeOnGround = 0f;
     private PlayerAnimationGDX anim;
-
 
     public PlayerGDX() {
         x = 0;
@@ -20,9 +21,14 @@ public class PlayerGDX {
         anim = new PlayerAnimationGDX(24, 32); // Taille par défaut, modifiable
     }
 
+    public void resetGroundState() {
+        onGround = false;
+        groundPlatform = null;
+        timeOnGround = 0f;
+    }
 
     public void render(SpriteBatch batch, float delta) {
-        // Choix de l’état d’animation
+        // Choix de l'état d'animation
         PlayerAnimationGDX.State state = PlayerAnimationGDX.State.IDLE;
         if (isJumping || vy != 0) {
             state = PlayerAnimationGDX.State.JUMP;
@@ -34,7 +40,7 @@ public class PlayerGDX {
         TextureRegion frame = anim.getCurrentFrame();
         float w = anim.getSpriteWidth();
         float h = anim.getSpriteHeight();
-        batch.draw(frame, x - w/2, y, w, h);
+        batch.draw(frame, x - w / 2, y, w, h);
     }
 
     public void dispose() {

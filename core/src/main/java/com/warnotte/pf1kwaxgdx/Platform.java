@@ -6,7 +6,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 public class Platform {
 
     public enum PlatformType {
-        SOLID,           // Marron - Plateforme classique
+        SOLID,             // Marron - Plateforme classique
         MOVING_HORIZONTAL, // Bleu - Bouge horizontalement
         MOVING_VERTICAL,   // Vert - Monte et descend
         BREAKABLE,         // Orange - Se casse après passages
@@ -30,6 +30,10 @@ public class Platform {
     public boolean visible = true;          // Pour plateformes qui disparaissent
     public float conveyorSpeed = 50f;       // Vitesse du tapis roulant
 
+    // Breakable platform tuning
+    public float breakTotalTime = 2.5f;     // Temps total (en secondes) avant de casser si on reste dessus
+    private float breakContactTime = 0f;    // Temps accumulé sur l'étape courante
+
     public Platform(float x, float y, float width, float height, PlatformType type) {
         this.x = x;
         this.y = y;
@@ -46,12 +50,12 @@ public class Platform {
         switch (type) {
             case MOVING_HORIZONTAL:
                 // Mouvement sinusoïdal horizontal
-                x = originalX + (float)Math.sin(timer * moveSpeed / 30f) * moveRange;
+                x = originalX + (float) Math.sin(timer * moveSpeed / 30f) * moveRange;
                 break;
 
             case MOVING_VERTICAL:
                 // Mouvement sinusoïdal vertical
-                y = originalY + (float)Math.sin(timer * moveSpeed / 30f) * (moveRange * 0.5f);
+                y = originalY + (float) Math.sin(timer * moveSpeed / 30f) * (moveRange * 0.5f);
                 break;
 
             case DISAPPEARING:
@@ -90,20 +94,21 @@ public class Platform {
                 return new Color(0.2f, 0.4f, 0.8f, 1f);    // Bleu
             case MOVING_VERTICAL:
                 return new Color(0.2f, 0.7f, 0.3f, 1f);    // Vert
-            case BREAKABLE:
-                // Couleur change selon les dégâts
-                float damage = (float)hitCount / maxHits;
-                return new Color(1f, 0.6f - damage * 0.4f, 0.2f - damage * 0.2f, 1f); // Orange -> Rouge
+            case BREAKABLE: {
+                float damage = getBreakProgress();
+                float g = Math.max(0.2f, 0.6f - damage * 0.5f);
+                float b = Math.max(0.0f, 0.2f - damage * 0.2f);
+                return new Color(1f, g, b, 1f);            // Orange -> Rouge
+            }
             case BOUNCY:
                 // Pulsation rose
-                float pulse = (float)(Math.sin(timer * 5) * 0.2f + 0.8f);
+                float pulse = (float) (Math.sin(timer * 5) * 0.2f + 0.8f);
                 return new Color(1f, pulse * 0.4f, pulse, 1f); // Rose pulsant
             case ICE:
                 return new Color(0.7f, 0.9f, 1f, 0.8f);    // Cyan translucide
             case CONVEYOR:
                 return new Color(0.6f, 0.3f, 0.8f, 1f);    // Violet
-            case DISAPPEARING:
-                // Transparence qui change selon le cycle
+            case DISAPPEARING: {
                 float cycle = timer % 3f;
                 float alpha = 1f;
                 if (cycle > 1.5f && cycle < 2f) {
@@ -112,6 +117,7 @@ public class Platform {
                     alpha = (cycle - 2f) * 2f; // Apparition graduelle
                 }
                 return new Color(1f, 1f, 0.3f, alpha);     // Jaune avec transparence
+            }
             default:
                 return Color.GRAY;
         }
@@ -128,7 +134,7 @@ public class Platform {
             case CONVEYOR:
                 // Flèches pour montrer la direction
                 shapeRenderer.setColor(1f, 1f, 1f, 0.8f);
-                float arrowY = y + height/2;
+                float arrowY = y + height / 2;
                 boolean goingRight = conveyorSpeed > 0;
 
                 for (int i = 0; i < 3; i++) {
@@ -167,18 +173,23 @@ public class Platform {
                 }
                 break;
 
-            case BREAKABLE:
-                // Fissures selon les dégâts
-                if (hitCount > 0) {
-                    shapeRenderer.setColor(0.3f, 0.1f, 0.1f, 0.8f);
-                    // Fissures aléatoires
-                    for (int i = 0; i < hitCount; i++) {
-                        float crackX = x + 5 + i * (width - 10) / maxHits;
+            case BREAKABLE: {
+                float progress = getBreakProgress();
+                if (progress > 0f) {
+                    shapeRenderer.setColor(1f, 0.3f, 0.1f, 0.25f * progress);
+                    shapeRenderer.rect(x, y, width, height);
+
+                    int cracks = Math.min(maxHits, Math.max(1, (int) Math.ceil(progress * maxHits)));
+                    shapeRenderer.setColor(0.3f, 0.1f, 0.1f, 0.5f + 0.3f * progress);
+                    for (int i = 0; i < cracks; i++) {
+                        float fraction = (float) (i + 1) / (cracks + 1);
+                        float crackX = x + 5 + fraction * (width - 10);
                         shapeRenderer.rect(crackX, y + 2, 1, height - 4);
-                        shapeRenderer.rect(crackX - 3, y + height/2, 6, 1);
+                        shapeRenderer.rect(crackX - 3, y + height / 2, 6, 1);
                     }
                 }
                 break;
+            }
 
             default:
                 break;
@@ -197,26 +208,77 @@ public class Platform {
                playerY + playerHeight > y;
     }
 
-    // Actions spéciales quand le joueur touche la plateforme
-    public void onPlayerContact(PlayerGDX player) {
+    public void handlePlayerContact(PlayerGDX player, float delta, boolean landedThisFrame) {
         switch (type) {
             case BREAKABLE:
-                hitCount++;
+                if (hitCount >= maxHits) {
+                    return;
+                }
+                breakContactTime += delta;
+                float stageDuration = getBreakStageDuration();
+                while (breakContactTime >= stageDuration && hitCount < maxHits) {
+                    breakContactTime -= stageDuration;
+                    hitCount++;
+                    if (hitCount >= maxHits) {
+                        visible = false;
+                        player.onGround = false;
+                        player.groundPlatform = null;
+                        player.isJumping = true;
+                        player.timeOnGround = 0f;
+                        player.vy = Math.min(player.vy, -1f);
+                        breakContactTime = stageDuration;
+                        break;
+                    }
+                }
                 break;
 
             case BOUNCY:
-                // Super saut
-                player.vy = 15f; // Plus fort que le saut normal
-                player.isJumping = true;
+                if (landedThisFrame) {
+                    player.vy = 15f; // Plus fort que le saut normal
+                    player.isJumping = true;
+                    player.onGround = false;
+                    player.groundPlatform = null;
+                    player.timeOnGround = 0f;
+                }
                 break;
 
             case CONVEYOR:
-                // Pousser le joueur
-                player.x += conveyorSpeed * 0.016f; // Approximation du delta
+                if (player.onGround) {
+                    player.x += conveyorSpeed * delta;
+                }
                 break;
 
             default:
                 break;
         }
+    }
+
+    public void onPlayerLeave(PlayerGDX player) {
+        if (type == PlatformType.BREAKABLE && hitCount < maxHits) {
+            float stageDuration = getBreakStageDuration();
+            breakContactTime = Math.min(breakContactTime, stageDuration * 0.8f);
+        }
+    }
+
+    private float getBreakStageDuration() {
+        int stages = Math.max(1, maxHits);
+        return breakTotalTime / stages;
+    }
+
+    private float getBreakProgressRaw() {
+        if (type != PlatformType.BREAKABLE) {
+            return 0f;
+        }
+        float stageDuration = getBreakStageDuration();
+        return hitCount + (stageDuration <= 0f ? 0f : breakContactTime / stageDuration);
+    }
+
+    public float getBreakProgress() {
+        if (type != PlatformType.BREAKABLE) {
+            return 0f;
+        }
+        float totalStages = Math.max(1, maxHits);
+        float progress = getBreakProgressRaw() / totalStages;
+        return Math.min(progress, 1f);
     }
 }

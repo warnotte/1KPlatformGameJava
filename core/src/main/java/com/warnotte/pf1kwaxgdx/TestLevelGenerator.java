@@ -35,6 +35,7 @@ public class TestLevelGenerator {
         // Test 4: Plateforme cassable
         Platform breakable = new Platform(currentX, baseY, 50, 20, Platform.PlatformType.BREAKABLE);
         breakable.maxHits = 3;
+        breakable.breakTotalTime = 2.8f;
         level.addPlatform(breakable);
         currentX += 100f;
 
