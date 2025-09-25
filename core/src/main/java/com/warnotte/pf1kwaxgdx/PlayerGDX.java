@@ -21,7 +21,7 @@ public class PlayerGDX {
     }
 
 
-    public void render(SpriteBatch batch) {
+    public void render(SpriteBatch batch, float delta) {
         // Choix de l’état d’animation
         PlayerAnimationGDX.State state = PlayerAnimationGDX.State.IDLE;
         if (isJumping || vy != 0) {
@@ -30,7 +30,7 @@ public class PlayerGDX {
             state = PlayerAnimationGDX.State.RUN;
         }
         boolean facingRight = !movingLeft || (movingRight && !movingLeft);
-        anim.update(Gdx.graphics.getDeltaTime(), state, facingRight);
+        anim.update(delta, state, facingRight);
         TextureRegion frame = anim.getCurrentFrame();
         float w = anim.getSpriteWidth();
         float h = anim.getSpriteHeight();

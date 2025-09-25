@@ -210,7 +210,7 @@ public class GameScreen implements Screen {
     // Détecter la direction pour l’animation
     gs.player.movingLeft = left && !right;
     gs.player.movingRight = right && !left;
-    gs.player.render(batch);
+    gs.player.render(batch, delta);
     batch.end();
 
     // Affichage des vies
