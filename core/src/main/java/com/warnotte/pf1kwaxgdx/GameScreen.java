@@ -1,6 +1,19 @@
+
 package com.warnotte.pf1kwaxgdx;
 
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+
+// Import des classes du projet
+import com.warnotte.pf1kwaxgdx.GameMain;
+import com.warnotte.pf1kwaxgdx.GameStateGDX;
+import com.warnotte.pf1kwaxgdx.CaseGDX;
+import com.warnotte.pf1kwaxgdx.MenuScreen;
 
 public class GameScreen implements Screen {
     private final GameMain game;
