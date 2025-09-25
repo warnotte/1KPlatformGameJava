@@ -101,15 +101,20 @@ public class GameScreen implements Screen {
 
         if (left) {
             float testX = playerCenterX - speed;
-            // Si on est dans un trou, empêcher d'aller sur une case plus haute sans sauter
             if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
-                // Autoriser le déplacement seulement si la case suivante est aussi un trou OU si on saute (en l'air)
+                // Autoriser le déplacement si la case suivante est aussi un trou
                 if (nextCaseLeft != null && nextCaseLeft.type == CaseGDX.TypeCase.HOLE) {
                     nextX = testX;
+                } else {
+                    // Autoriser le passage si le joueur est en l'air (saut)
+                    if (gs.player.vy > 0 || !gs.player.isJumping) {
+                        // On saute ou tombe : autoriser le passage si la hauteur du joueur permet d'atterrir
+                        if (nextCaseLeft != null && nextCaseLeft.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundLeft) {
+                            nextX = testX;
+                        }
+                    }
                 }
-                // Sinon, bloqué
             } else {
-                // Empêcher de monter sur une case plus haute sans sauter
                 if (nextGroundLeft - currentGround <= 6.5f || playerBottom > nextGroundLeft) {
                     nextX = testX;
                 }
@@ -120,6 +125,12 @@ public class GameScreen implements Screen {
             if (currentCase != null && currentCase.type == CaseGDX.TypeCase.HOLE) {
                 if (nextCaseRight != null && nextCaseRight.type == CaseGDX.TypeCase.HOLE) {
                     nextX = testX;
+                } else {
+                    if (gs.player.vy > 0 || !gs.player.isJumping) {
+                        if (nextCaseRight != null && nextCaseRight.type != CaseGDX.TypeCase.HOLE && playerBottom > nextGroundRight) {
+                            nextX = testX;
+                        }
+                    }
                 }
             } else {
                 if (nextGroundRight - currentGround <= 6.5f || playerBottom > nextGroundRight) {
