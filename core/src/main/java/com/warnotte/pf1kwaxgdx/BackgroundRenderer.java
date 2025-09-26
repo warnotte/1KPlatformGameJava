@@ -2,29 +2,37 @@ package com.warnotte.pf1kwaxgdx;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Texture.TextureFilter;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import java.util.ArrayList;
 import java.util.List;
 
 public class BackgroundRenderer {
-    private ShapeRenderer shapeRenderer;
+    private final ShapeRenderer shapeRenderer;
+    private final SpriteBatch cloudBatch;
     private List<Cloud> clouds;
     private List<Mountain> mountains;
     private float timeOfDay = 0f; // 0-24h cycle
     private float sunX, sunY;
 
-    // Classes internes pour les éléments
     private static class Cloud {
-        float x, y, width, height, speed;
-        float alpha;
+        float x, y, width, height, speed, alpha;
+        int layer;
+        Texture texture;
 
-        Cloud(float x, float y, float width, float height, float speed) {
+        Cloud(float x, float y, float width, float height, float speed, float alpha, int layer, Texture texture) {
             this.x = x;
             this.y = y;
             this.width = width;
             this.height = height;
             this.speed = speed;
-            this.alpha = 0.3f + (float)Math.random() * 0.4f; // Transparence variable
+            this.alpha = alpha;
+            this.layer = layer;
+            this.texture = texture;
         }
     }
 
@@ -43,135 +51,117 @@ public class BackgroundRenderer {
 
     public BackgroundRenderer(ShapeRenderer shapeRenderer) {
         this.shapeRenderer = shapeRenderer;
+        this.cloudBatch = new SpriteBatch();
         generateClouds();
         generateMountains();
     }
 
     private void generateClouds() {
         clouds = new ArrayList<>();
-        // Générer plusieurs couches de nuages avec vitesses différentes
-        for (int i = 0; i < 8; i++) {
-            float x = (float)Math.random() * 1200 - 200;
-            float y = 300 + (float)Math.random() * 150;
-            float width = 40 + (float)Math.random() * 60;
-            float height = 20 + (float)Math.random() * 30;
-            float speed = 5 + (float)Math.random() * 15; // Vitesse variable
-            clouds.add(new Cloud(x, y, width, height, speed));
+        for (int layer = 0; layer < 3; layer++) {
+            int count = layer == 0 ? 4 : layer == 1 ? 5 : 6;
+            for (int i = 0; i < count; i++) {
+                float width = randomCloudWidth(layer);
+                float height = width * MathUtils.random(0.35f, 0.55f);
+                float x = MathUtils.random(-220f, 1400f);
+                float y = randomCloudY(layer, 320f);
+                float speed = randomCloudSpeed(layer);
+                float alpha = randomCloudAlpha(layer);
+                Texture texture = createCloudTexture(width, height);
+                texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+                clouds.add(new Cloud(x, y, width, height, speed, alpha, layer, texture));
+            }
         }
     }
 
     private void generateMountains() {
         mountains = new ArrayList<>();
-        // Générer plusieurs couches de montagnes (parallaxe)
 
-        // Couche arrière (plus sombre, plus lointaine)
         for (int i = 0; i < 6; i++) {
             float x = i * 150 - 100;
-            float height = 80 + (float)Math.random() * 120;
+            float height = 80 + MathUtils.random() * 120f;
             mountains.add(new Mountain(x, 0, 200, height, new Color(0.2f, 0.3f, 0.6f, 0.8f)));
         }
 
-        // Couche avant (plus claire, plus proche)
         for (int i = 0; i < 8; i++) {
             float x = i * 120 - 50;
-            float height = 60 + (float)Math.random() * 100;
+            float height = 60 + MathUtils.random() * 100f;
             mountains.add(new Mountain(x, 0, 160, height, new Color(0.3f, 0.4f, 0.7f, 0.9f)));
         }
     }
 
     public void render(OrthographicCamera camera, float delta) {
-        timeOfDay += delta * 2.0f; // Cycle jour/nuit plus rapide pour les tests
+        timeOfDay += delta * 2.0f;
         if (timeOfDay > 24f) timeOfDay = 0f;
 
-        // Calcul position soleil
-        float sunAngle = (timeOfDay / 24f) * 6.28f; // 2π
-        sunX = camera.position.x + 200 * (float)Math.cos(sunAngle);
-        sunY = camera.position.y + 150 + 100 * (float)Math.sin(sunAngle);
+        float sunAngle = (timeOfDay / 24f) * MathUtils.PI2;
+        sunX = camera.position.x + 200 * MathUtils.cos(sunAngle);
+        sunY = camera.position.y + 150 + 100 * MathUtils.sin(sunAngle);
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        // 1. Dégradé de ciel
         renderSkyGradient(camera);
-
-        // 2. Soleil
         renderSun(camera);
-
-        // 3. Montagnes (parallaxe)
         renderMountains(camera);
-
-        // 4. Nuages mouvants
-        renderClouds(camera, delta);
-
         shapeRenderer.end();
+
+        renderClouds(camera, delta);
     }
 
     private void renderSkyGradient(OrthographicCamera camera) {
-        // Couleurs selon l'heure avec transitions douces
         Color skyTop, skyBottom;
 
-        // Couleurs de base pour chaque période
-        Color dayTop = new Color(0.5f, 0.8f, 1f, 1f);        // Bleu jour
+        Color dayTop = new Color(0.5f, 0.8f, 1f, 1f);
         Color dayBottom = new Color(0.7f, 0.9f, 1f, 1f);
-        Color nightTop = new Color(0.1f, 0.1f, 0.3f, 1f);    // Bleu nuit
+        Color nightTop = new Color(0.1f, 0.1f, 0.3f, 1f);
         Color nightBottom = new Color(0.2f, 0.2f, 0.4f, 1f);
-        Color sunsetTop = new Color(0.8f, 0.4f, 0.2f, 1f);   // Orange coucher de soleil
+        Color sunsetTop = new Color(0.8f, 0.4f, 0.2f, 1f);
         Color sunsetBottom = new Color(1f, 0.6f, 0.3f, 1f);
-        Color sunriseTop = new Color(0.9f, 0.6f, 0.4f, 1f);  // Rose lever de soleil
+        Color sunriseTop = new Color(0.9f, 0.6f, 0.4f, 1f);
         Color sunriseBottom = new Color(1f, 0.8f, 0.6f, 1f);
 
         if (timeOfDay >= 5 && timeOfDay < 7) {
-            // Lever de soleil (5h-7h) : transition nuit -> rose -> jour
             float t = (timeOfDay - 5) / 2f;
             if (t < 0.5f) {
-                // Nuit vers lever de soleil
                 float blend = t * 2f;
                 skyTop = blendColors(nightTop, sunriseTop, blend);
                 skyBottom = blendColors(nightBottom, sunriseBottom, blend);
             } else {
-                // Lever de soleil vers jour
                 float blend = (t - 0.5f) * 2f;
                 skyTop = blendColors(sunriseTop, dayTop, blend);
                 skyBottom = blendColors(sunriseBottom, dayBottom, blend);
             }
         } else if (timeOfDay >= 7 && timeOfDay < 17) {
-            // Jour complet
             skyTop = dayTop;
             skyBottom = dayBottom;
         } else if (timeOfDay >= 17 && timeOfDay < 19) {
-            // Coucher de soleil (17h-19h) : jour -> orange -> nuit
             float t = (timeOfDay - 17) / 2f;
             if (t < 0.5f) {
-                // Jour vers coucher de soleil
                 float blend = t * 2f;
                 skyTop = blendColors(dayTop, sunsetTop, blend);
                 skyBottom = blendColors(dayBottom, sunsetBottom, blend);
             } else {
-                // Coucher de soleil vers nuit
                 float blend = (t - 0.5f) * 2f;
                 skyTop = blendColors(sunsetTop, nightTop, blend);
                 skyBottom = blendColors(sunsetBottom, nightBottom, blend);
             }
         } else {
-            // Nuit complète
             skyTop = nightTop;
             skyBottom = nightBottom;
         }
 
-        // Simuler un dégradé avec des rectangles de couleurs dégradées
         float viewWidth = camera.viewportWidth;
         float viewHeight = camera.viewportHeight;
-        float startX = camera.position.x - viewWidth/2;
-        float startY = camera.position.y - viewHeight/2;
+        float startX = camera.position.x - viewWidth / 2f;
+        float startY = camera.position.y - viewHeight / 2f;
 
-        int strips = 20; // Nombre de bandes pour simuler le dégradé
+        int strips = 24;
         for (int i = 0; i < strips; i++) {
-            float ratio = (float)i / strips;
+            float ratio = (float) i / strips;
             Color currentColor = new Color();
             currentColor.r = skyBottom.r + (skyTop.r - skyBottom.r) * ratio;
             currentColor.g = skyBottom.g + (skyTop.g - skyBottom.g) * ratio;
             currentColor.b = skyBottom.b + (skyTop.b - skyBottom.b) * ratio;
             currentColor.a = 1f;
-
             shapeRenderer.setColor(currentColor);
             float stripHeight = viewHeight / strips;
             shapeRenderer.rect(startX, startY + i * stripHeight, viewWidth, stripHeight);
@@ -179,33 +169,27 @@ public class BackgroundRenderer {
     }
 
     private void renderSun(OrthographicCamera camera) {
-        if (sunY > camera.position.y - camera.viewportHeight/2) {
-            Color sunColor;
-            if (timeOfDay >= 6 && timeOfDay <= 18) {
-                sunColor = new Color(1f, 1f, 0.3f, 0.8f); // Jaune jour
-            } else {
-                sunColor = new Color(0.9f, 0.9f, 0.9f, 0.6f); // Blanc/gris nuit (lune)
-            }
+        if (sunY > camera.position.y - camera.viewportHeight / 2f) {
+            Color sunColor = (timeOfDay >= 6 && timeOfDay <= 18)
+                ? new Color(1f, 1f, 0.3f, 0.8f)
+                : new Color(0.9f, 0.9f, 0.9f, 0.6f);
             shapeRenderer.setColor(sunColor);
             shapeRenderer.circle(sunX, sunY, 25);
         }
     }
 
     private void renderMountains(OrthographicCamera camera) {
-        float parallaxFactor1 = 0.3f; // Couche arrière bouge lentement
-        float parallaxFactor2 = 0.5f; // Couche avant bouge un peu plus vite
+        float parallaxFactor1 = 0.3f;
+        float parallaxFactor2 = 0.5f;
 
         for (int i = 0; i < mountains.size(); i++) {
             Mountain m = mountains.get(i);
             float parallaxFactor = (i < 6) ? parallaxFactor1 : parallaxFactor2;
             float offsetX = camera.position.x * parallaxFactor;
-
             shapeRenderer.setColor(m.color);
-
-            // Triangle simple pour simuler une montagne
             float[] vertices = {
                 m.x - offsetX, m.y,
-                m.x - offsetX + m.width/2, m.y + m.height,
+                m.x - offsetX + m.width / 2f, m.y + m.height,
                 m.x - offsetX + m.width, m.y
             };
             shapeRenderer.triangle(vertices[0], vertices[1], vertices[2], vertices[3], vertices[4], vertices[5]);
@@ -213,29 +197,146 @@ public class BackgroundRenderer {
     }
 
     private void renderClouds(OrthographicCamera camera, float delta) {
+        float viewLeft = camera.position.x - camera.viewportWidth / 2f - 180f;
+        float viewRight = camera.position.x + camera.viewportWidth / 2f + 180f;
+
+        cloudBatch.setProjectionMatrix(camera.combined);
+        cloudBatch.begin();
         for (Cloud cloud : clouds) {
-            // Mouvement des nuages
             cloud.x += cloud.speed * delta;
 
-            // Réapparaître à gauche quand ils sortent à droite
-            if (cloud.x > camera.position.x + camera.viewportWidth) {
-                cloud.x = camera.position.x - camera.viewportWidth - cloud.width;
+            if (cloud.x > viewRight) {
+                cloud.x = viewLeft - cloud.width - MathUtils.random(40f, 160f);
+                cloud.y = randomCloudY(cloud.layer, camera.position.y);
+                cloud.alpha = randomCloudAlpha(cloud.layer);
+                cloud.speed = randomCloudSpeed(cloud.layer);
+            } else if (cloud.x + cloud.width < viewLeft) {
+                cloud.x = viewRight + MathUtils.random(40f, 160f);
+                cloud.y = randomCloudY(cloud.layer, camera.position.y);
+                cloud.alpha = randomCloudAlpha(cloud.layer);
+                cloud.speed = randomCloudSpeed(cloud.layer);
             }
 
-            // Dessiner le nuage comme plusieurs ellipses
-            shapeRenderer.setColor(1f, 1f, 1f, cloud.alpha);
+            cloudBatch.setColor(1f, 1f, 1f, cloud.alpha);
+            cloudBatch.draw(cloud.texture, cloud.x, cloud.y, cloud.width, cloud.height);
+        }
+        cloudBatch.setColor(Color.WHITE);
+        cloudBatch.end();
+    }
 
-            // Corps principal du nuage
-            shapeRenderer.ellipse(cloud.x, cloud.y, cloud.width, cloud.height);
-            // Parties additionnelles pour effet nuage
-            shapeRenderer.ellipse(cloud.x + cloud.width * 0.3f, cloud.y + cloud.height * 0.2f,
-                                cloud.width * 0.6f, cloud.height * 0.8f);
-            shapeRenderer.ellipse(cloud.x + cloud.width * 0.6f, cloud.y - cloud.height * 0.1f,
-                                cloud.width * 0.7f, cloud.height * 0.9f);
+
+private Texture createCloudTexture(float targetWidth, float targetHeight) {
+    int pixWidth = MathUtils.clamp(MathUtils.round(targetWidth), 96, 320);
+    int pixHeight = MathUtils.clamp(MathUtils.round(targetHeight), 64, 200);
+    Pixmap pixmap = new Pixmap(pixWidth, pixHeight, Pixmap.Format.RGBA8888);
+    pixmap.setColor(0f, 0f, 0f, 0f);
+    pixmap.fill();
+
+    int puffs = MathUtils.random(5, 7);
+    for (int i = 0; i < puffs; i++) {
+        float cx = MathUtils.random(pixWidth * 0.25f, pixWidth * 0.75f);
+        float cy = MathUtils.random(pixHeight * 0.45f, pixHeight * 0.85f);
+        float radius = MathUtils.random(pixHeight * 0.22f, pixHeight * 0.45f);
+        drawSoftCircle(pixmap, cx, cy, radius, 0.36f);
+    }
+
+    int highlights = MathUtils.random(2, 3);
+    for (int i = 0; i < highlights; i++) {
+        float cx = MathUtils.random(pixWidth * 0.3f, pixWidth * 0.7f);
+        float cy = MathUtils.random(pixHeight * 0.65f, pixHeight * 0.95f);
+        float radius = MathUtils.random(pixHeight * 0.18f, pixHeight * 0.3f);
+        drawSoftCircle(pixmap, cx, cy, radius, 0.55f);
+    }
+
+    applyEdgeFade(pixmap, 0.22f);
+
+    Texture texture = new Texture(pixmap);
+    pixmap.dispose();
+    return texture;
+}
+
+private void drawSoftCircle(Pixmap pixmap, float centerX, float centerY, float radius, float baseAlpha) {
+    int steps = 4;
+    for (int i = 0; i < steps; i++) {
+        float t = (float) i / steps;
+        float stepRadius = radius * (1f - t * 0.3f);
+        float alpha = baseAlpha * (1f - t * 0.5f);
+        pixmap.setColor(1f, 1f, 1f, alpha);
+        pixmap.fillCircle(MathUtils.round(centerX), MathUtils.round(centerY), MathUtils.round(stepRadius));
+    }
+}
+
+private void applyEdgeFade(Pixmap pixmap, float strength) {
+    int width = pixmap.getWidth();
+    int height = pixmap.getHeight();
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int rgba = pixmap.getPixel(x, y);
+            if ((rgba & 0x000000ff) == 0) {
+                continue;
+            }
+            Color color = new Color();
+            Color.rgba8888ToColor(color, rgba);
+            float distX = Math.min(x, width - 1 - x) / (float) width;
+            float distY = Math.min(y, height - 1 - y) / (float) height;
+            float edge = Math.min(distX, distY);
+            edge = MathUtils.clamp(edge * 2.2f, 0f, 1f);
+            edge = MathUtils.clamp(edge, 0f, 1f);
+            edge = edge * edge * (3f - 2f * edge);
+            float fade = MathUtils.lerp(1f - strength, 1f, edge);
+            color.a *= MathUtils.clamp(fade, 0f, 1f);
+            pixmap.drawPixel(x, y, Color.rgba8888(color));
+        }
+    }
+}
+
+private float randomCloudWidth(int layer) {
+
+        switch (layer) {
+            case 0: return MathUtils.random(170f, 230f);
+            case 1: return MathUtils.random(150f, 210f);
+            default: return MathUtils.random(130f, 190f);
         }
     }
 
-    // Fonction utilitaire pour mélanger deux couleurs
+    private float randomCloudSpeed(int layer) {
+        switch (layer) {
+            case 0: return MathUtils.random(4f, 7f);
+            case 1: return MathUtils.random(6f, 11f);
+            default: return MathUtils.random(8f, 14f);
+        }
+    }
+
+    private float randomCloudAlpha(int layer) {
+        float base;
+        switch (layer) {
+            case 0: base = 0.35f; break;
+            case 1: base = 0.45f; break;
+            default: base = 0.55f; break;
+        }
+        return MathUtils.clamp(base + MathUtils.random(-0.08f, 0.08f), 0.2f, 0.75f);
+    }
+
+    private float randomCloudY(int layer, float referenceY) {
+        float base;
+        float range;
+        switch (layer) {
+            case 0:
+                base = referenceY + 120f;
+                range = 70f;
+                break;
+            case 1:
+                base = referenceY + 80f;
+                range = 80f;
+                break;
+            default:
+                base = referenceY + 50f;
+                range = 70f;
+                break;
+        }
+        return base + MathUtils.random(-range * 0.5f, range * 0.5f);
+    }
+
     private Color blendColors(Color color1, Color color2, float ratio) {
         float r = color1.r + (color2.r - color1.r) * ratio;
         float g = color1.g + (color2.g - color1.g) * ratio;
@@ -243,8 +344,18 @@ public class BackgroundRenderer {
         return new Color(r, g, b, 1f);
     }
 
-    // Getter pour l'heure (pour l'affichage)
     public float getTimeOfDay() {
         return timeOfDay;
+    }
+
+    public void dispose() {
+        if (clouds != null) {
+            for (Cloud cloud : clouds) {
+                if (cloud.texture != null) {
+                    cloud.texture.dispose();
+                }
+            }
+        }
+        cloudBatch.dispose();
     }
 }

@@ -21,18 +21,18 @@ public class Platform {
     public PlatformType type;
 
     // Propriétés spécifiques selon le type
-    public float originalX, originalY;      // Position de départ pour plateformes mobiles
-    public float moveRange = 100f;          // Distance de déplacement
-    public float moveSpeed = 30f;           // Vitesse de déplacement
-    public int hitCount = 0;                // Nombre de fois touchée (pour BREAKABLE)
-    public int maxHits = 3;                 // Hits max avant destruction
-    public float timer = 0f;                // Timer pour animations/cycles
-    public boolean visible = true;          // Pour plateformes qui disparaissent
-    public float conveyorSpeed = 50f;       // Vitesse du tapis roulant
+    public float originalX, originalY;
+    public float moveRange = 100f;
+    public float moveSpeed = 30f;
+    public int hitCount = 0;
+    public int maxHits = 3;
+    public float timer = 0f;
+    public boolean visible = true;
+    public float conveyorSpeed = 50f;
 
-    // Breakable platform tuning
-    public float breakTotalTime = 2.5f;     // Temps total (en secondes) avant de casser si on reste dessus
-    private float breakContactTime = 0f;    // Temps accumulé sur l'étape courante
+    // Breakable tuning
+    public float breakTotalTime = 2.5f;
+    private float breakContactTime = 0f;
 
     public Platform(float x, float y, float width, float height, PlatformType type) {
         this.x = x;
@@ -49,74 +49,62 @@ public class Platform {
 
         switch (type) {
             case MOVING_HORIZONTAL:
-                // Mouvement sinusoïdal horizontal
                 x = originalX + (float) Math.sin(timer * moveSpeed / 30f) * moveRange;
                 break;
-
             case MOVING_VERTICAL:
-                // Mouvement sinusoïdal vertical
                 y = originalY + (float) Math.sin(timer * moveSpeed / 30f) * (moveRange * 0.5f);
                 break;
-
             case DISAPPEARING:
-                // Cycle apparition/disparition (2 sec visible, 1 sec invisible)
                 float cycle = timer % 3f;
                 visible = cycle < 2f;
                 break;
-
             default:
-                // Autres types n'ont pas d'animation automatique
                 break;
         }
     }
 
     public void render(ShapeRenderer shapeRenderer) {
         if (!visible || (type == PlatformType.BREAKABLE && hitCount >= maxHits)) {
-            return; // Ne pas dessiner si invisible ou cassée
+            return;
         }
 
-        // Couleur selon le type
         Color platformColor = getPlatformColor();
         shapeRenderer.setColor(platformColor);
-
-        // Corps principal de la plateforme
         shapeRenderer.rect(x, y, width, height);
-
-        // Effets visuels spéciaux selon le type
         renderSpecialEffects(shapeRenderer);
     }
 
     private Color getPlatformColor() {
         switch (type) {
             case SOLID:
-                return new Color(0.6f, 0.4f, 0.2f, 1f);    // Marron
+                return new Color(0.6f, 0.4f, 0.2f, 1f);
             case MOVING_HORIZONTAL:
-                return new Color(0.2f, 0.4f, 0.8f, 1f);    // Bleu
+                return new Color(0.2f, 0.4f, 0.8f, 1f);
             case MOVING_VERTICAL:
-                return new Color(0.2f, 0.7f, 0.3f, 1f);    // Vert
+                return new Color(0.2f, 0.7f, 0.3f, 1f);
             case BREAKABLE: {
                 float damage = getBreakProgress();
-                float g = Math.max(0.2f, 0.6f - damage * 0.5f);
+                float g = Math.max(0.2f, 0.6f - damage * 0.55f);
                 float b = Math.max(0.0f, 0.2f - damage * 0.2f);
-                return new Color(1f, g, b, 1f);            // Orange -> Rouge
+                return new Color(1f, g, b, 1f);
             }
-            case BOUNCY:
-                // Pulsation rose
-                float pulse = (float) (Math.sin(timer * 5) * 0.2f + 0.8f);
-                return new Color(1f, pulse * 0.4f, pulse, 1f); // Rose pulsant
+            case BOUNCY: {
+                float pulse = (float) (Math.sin(timer * 5f) * 0.2f + 0.8f);
+                return new Color(1f, pulse * 0.4f, pulse, 1f);
+            }
             case ICE:
-                return new Color(0.7f, 0.9f, 1f, 0.8f);    // Cyan translucide
+                return new Color(0.7f, 0.9f, 1f, 0.8f);
             case CONVEYOR:
-                return new Color(0.6f, 0.3f, 0.8f, 1f);    // Violet
+                return new Color(0.6f, 0.3f, 0.8f, 1f);
             case DISAPPEARING: {
                 float cycle = timer % 3f;
                 float alpha = 1f;
                 if (cycle > 1.5f && cycle < 2f) {
-                    alpha = (2f - cycle) * 2f; // Disparition graduelle
+                    alpha = (2f - cycle) * 2f;
                 } else if (cycle > 2f && cycle < 2.5f) {
-                    alpha = (cycle - 2f) * 2f; // Apparition graduelle
+                    alpha = (cycle - 2f) * 2f;
                 }
-                return new Color(1f, 1f, 0.3f, alpha);     // Jaune avec transparence
+                return new Color(1f, 1f, 0.3f, alpha);
             }
             default:
                 return Color.GRAY;
@@ -126,99 +114,84 @@ public class Platform {
     private void renderSpecialEffects(ShapeRenderer shapeRenderer) {
         switch (type) {
             case ICE:
-                // Effet brillant sur la glace
                 shapeRenderer.setColor(1f, 1f, 1f, 0.6f);
-                shapeRenderer.rect(x + 2, y + height - 3, width - 4, 2);
+                shapeRenderer.rect(x + 2f, y + height - 3f, width - 4f, 2f);
                 break;
-
             case CONVEYOR:
-                // Flèches pour montrer la direction
                 shapeRenderer.setColor(1f, 1f, 1f, 0.8f);
-                float arrowY = y + height / 2;
-                boolean goingRight = conveyorSpeed > 0;
-
+                float arrowY = y + height / 2f;
+                boolean goingRight = conveyorSpeed > 0f;
                 for (int i = 0; i < 3; i++) {
-                    float arrowX = x + 10 + i * (width - 20) / 2;
-
+                    float arrowX = x + 10f + i * (width - 20f) / 2f;
                     if (goingRight) {
-                        // Flèche vers la droite
                         shapeRenderer.triangle(
-                            arrowX, arrowY - 3,
-                            arrowX + 6, arrowY,
-                            arrowX, arrowY + 3
+                            arrowX, arrowY - 3f,
+                            arrowX + 6f, arrowY,
+                            arrowX, arrowY + 3f
                         );
                     } else {
-                        // Flèche vers la gauche
                         shapeRenderer.triangle(
-                            arrowX + 6, arrowY - 3,
+                            arrowX + 6f, arrowY - 3f,
                             arrowX, arrowY,
-                            arrowX + 6, arrowY + 3
+                            arrowX + 6f, arrowY + 3f
                         );
                     }
                 }
                 break;
-
             case BOUNCY:
-                // Ressorts sur les côtés
                 shapeRenderer.setColor(0.8f, 0.8f, 0.8f, 1f);
-                // Ressort gauche
                 for (int i = 0; i < 3; i++) {
-                    float springY = y + 3 + i * 4;
-                    shapeRenderer.rect(x + 2, springY, 3, 2);
-                }
-                // Ressort droit
-                for (int i = 0; i < 3; i++) {
-                    float springY = y + 3 + i * 4;
-                    shapeRenderer.rect(x + width - 5, springY, 3, 2);
+                    float springY = y + 3f + i * 4f;
+                    shapeRenderer.rect(x + 2f, springY, 3f, 2f);
+                    shapeRenderer.rect(x + width - 5f, springY, 3f, 2f);
                 }
                 break;
-
-            case BREAKABLE: {
+            case BREAKABLE:
                 float progress = getBreakProgress();
                 if (progress > 0f) {
-                    shapeRenderer.setColor(1f, 0.3f, 0.1f, 0.25f * progress);
+                    shapeRenderer.setColor(1f, 0.3f, 0.1f, 0.2f * (0.5f + progress));
                     shapeRenderer.rect(x, y, width, height);
-
                     int cracks = Math.min(maxHits, Math.max(1, (int) Math.ceil(progress * maxHits)));
-                    shapeRenderer.setColor(0.3f, 0.1f, 0.1f, 0.5f + 0.3f * progress);
+                    shapeRenderer.setColor(0.3f, 0.1f, 0.1f, 0.45f + 0.35f * progress);
                     for (int i = 0; i < cracks; i++) {
                         float fraction = (float) (i + 1) / (cracks + 1);
-                        float crackX = x + 5 + fraction * (width - 10);
-                        shapeRenderer.rect(crackX, y + 2, 1, height - 4);
-                        shapeRenderer.rect(crackX - 3, y + height / 2, 6, 1);
+                        float crackX = x + 5f + fraction * (width - 10f);
+                        shapeRenderer.rect(crackX, y + 2f, 1f, height - 4f);
+                        shapeRenderer.rect(crackX - 3f, y + height / 2f, 6f, 1f);
                     }
                 }
                 break;
-            }
-
             default:
                 break;
         }
     }
 
-    // Vérifier collision avec le joueur
     public boolean intersects(float playerX, float playerY, float playerWidth, float playerHeight) {
         if (!visible || (type == PlatformType.BREAKABLE && hitCount >= maxHits)) {
             return false;
         }
-
         return playerX < x + width &&
                playerX + playerWidth > x &&
                playerY < y + height &&
                playerY + playerHeight > y;
     }
 
-    public void handlePlayerContact(PlayerGDX player, float delta, boolean landedThisFrame) {
+    public void handlePlayerContact(PlayerGDX player, float delta, boolean landedThisFrame, ParticleSystem particles) {
         switch (type) {
             case BREAKABLE:
                 if (hitCount >= maxHits) {
                     return;
                 }
-                breakContactTime += delta;
                 float stageDuration = getBreakStageDuration();
+                boolean stageTriggered = false;
+                breakContactTime += delta;
                 while (breakContactTime >= stageDuration && hitCount < maxHits) {
                     breakContactTime -= stageDuration;
                     hitCount++;
+                    stageTriggered = true;
+                    if (particles != null) {
+                        particles.spawnFragments(player.x, y + height, new Color(1f, 0.7f, 0.35f, 1f), 6 + hitCount * 2, ParticleSystem.ParticleLayer.FOREGROUND);
+                    }
                     if (hitCount >= maxHits) {
                         visible = false;
                         player.onGround = false;
@@ -227,27 +200,33 @@ public class Platform {
                         player.timeOnGround = 0f;
                         player.vy = Math.min(player.vy, -1f);
                         breakContactTime = stageDuration;
+                        if (particles != null) {
+                            particles.spawnFragments(x + width / 2f, y + height / 2f, new Color(1f, 0.45f, 0.15f, 1f), 22, ParticleSystem.ParticleLayer.FOREGROUND);
+                        }
                         break;
                     }
                 }
+                if (stageTriggered && hitCount < maxHits && particles != null) {
+                    particles.spawnDust(player.x, y + height, new Color(1f, 0.65f, 0.35f, 1f), ParticleSystem.ParticleLayer.FOREGROUND);
+                }
                 break;
-
             case BOUNCY:
                 if (landedThisFrame) {
-                    player.vy = 15f; // Plus fort que le saut normal
+                    player.vy = 15f;
                     player.isJumping = true;
                     player.onGround = false;
                     player.groundPlatform = null;
                     player.timeOnGround = 0f;
+                    if (particles != null) {
+                        particles.spawnDust(player.x, y + height, new Color(1f, 0.55f, 0.85f, 1f), ParticleSystem.ParticleLayer.FOREGROUND);
+                    }
                 }
                 break;
-
             case CONVEYOR:
                 if (player.onGround) {
                     player.x += conveyorSpeed * delta;
                 }
                 break;
-
             default:
                 break;
         }
